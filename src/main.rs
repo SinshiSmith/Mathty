@@ -3,7 +3,7 @@
 use nom::{
     branch::alt,
     bytes::complete::tag,
-    character::complete::digit1,
+    character::complete::{digit0, digit1},
     combinator::opt,
     multi::many0,
     sequence::{delimited, pair, tuple},
@@ -145,20 +145,46 @@ fn equation_parser(input: &str) -> IResult<&str, Equation> {
     })
     .parse(input)
 }
+fn branching_parser(input: &str) -> IResult<&str, Equation> {
+    alt((
+        number_parser.map(|x| Equation::Number(x)),
+        pair(
+            many0(sign_parser),
+            delimited(tag("("), equation_parser, tag(")")),
+        )
+        .map(|(signs, equation)| {
+            let number = Number {
+                value: 1,
+                sign: signs,
+            };
+
+            if number.solve() == 1 {
+                return equation;
+            }
+
+            Equation::Part(Box::new(Operation {
+                left: Equation::Number(number),
+                operator: Operator::Multiple,
+                right: equation,
+            }))
+        }),
+    ))
+    .parse(input)
+}
+
 fn multi_div_equation_parser(input: &str) -> IResult<&str, Equation> {
     pair(
-        number_parser,
-        many0(pair(multi_div_operator_parser, number_parser)),
+        branching_parser,
+        many0(pair(multi_div_operator_parser, branching_parser)),
     )
     .map(|(left, list)| {
-        list.into_iter()
-            .fold(Equation::Number(left), |acc, (operator, right)| {
-                Equation::Part(Box::new(Operation {
-                    left: acc,
-                    operator,
-                    right: Equation::Number(right),
-                }))
-            })
+        list.into_iter().fold(left, |acc, (operator, right)| {
+            Equation::Part(Box::new(Operation {
+                left: acc,
+                operator,
+                right,
+            }))
+        })
     })
     .parse(input)
 }
@@ -173,7 +199,28 @@ fn milestone_1() {
         })
     );
     assert_eq!(
+        test_process("(5)"),
+        Equation::Number(Number {
+            value: 5,
+            sign: vec![]
+        })
+    );
+    assert_eq!(
         test_process("5 + 7"),
+        Equation::Part(Box::new(Operation {
+            left: Equation::Number(Number {
+                value: 5,
+                sign: vec![]
+            }),
+            operator: Operator::Addition,
+            right: Equation::Number(Number {
+                value: 7,
+                sign: vec![]
+            })
+        }))
+    );
+    assert_eq!(
+        test_process("(5 + 7)"),
         Equation::Part(Box::new(Operation {
             left: Equation::Number(Number {
                 value: 5,
@@ -205,6 +252,97 @@ fn milestone_1() {
                 value: 3,
                 sign: vec![]
             })
+        }))
+    );
+    assert_eq!(
+        test_process("(5 + 7) - 3"),
+        Equation::Part(Box::new(Operation {
+            left: Equation::Part(Box::new(Operation {
+                left: Equation::Number(Number {
+                    value: 5,
+                    sign: vec![]
+                }),
+                operator: Operator::Addition,
+                right: Equation::Number(Number {
+                    value: 7,
+                    sign: vec![]
+                })
+            })),
+            operator: Operator::Substract,
+            right: Equation::Number(Number {
+                value: 3,
+                sign: vec![]
+            })
+        }))
+    );
+    assert_eq!(
+        test_process("5 + (7 - 3)"),
+        Equation::Part(Box::new(Operation {
+            left: Equation::Number(Number {
+                value: 5,
+                sign: vec![]
+            }),
+            operator: Operator::Addition,
+            right: Equation::Part(Box::new(Operation {
+                left: Equation::Number(Number {
+                    value: 7,
+                    sign: vec![]
+                }),
+                operator: Operator::Substract,
+                right: Equation::Number(Number {
+                    value: 3,
+                    sign: vec![]
+                })
+            })),
+        }))
+    );
+    assert_eq!(
+        test_process("5 + ((7 + 1) - 3)"),
+        Equation::Part(Box::new(Operation {
+            left: Equation::Number(Number {
+                value: 5,
+                sign: vec![]
+            }),
+            operator: Operator::Addition,
+            right: Equation::Part(Box::new(Operation {
+                left: Equation::Part(Box::new(Operation {
+                    left: Equation::Number(Number {
+                        value: 7,
+                        sign: vec![]
+                    }),
+                    operator: Operator::Addition,
+                    right: Equation::Number(Number {
+                        value: 1,
+                        sign: vec![]
+                    })
+                })),
+                operator: Operator::Substract,
+                right: Equation::Number(Number {
+                    value: 3,
+                    sign: vec![]
+                })
+            })),
+        }))
+    );
+    assert_eq!(
+        test_process("5 * (7 - 3)"),
+        Equation::Part(Box::new(Operation {
+            left: Equation::Number(Number {
+                value: 5,
+                sign: vec![]
+            }),
+            operator: Operator::Multiple,
+            right: Equation::Part(Box::new(Operation {
+                left: Equation::Number(Number {
+                    value: 7,
+                    sign: vec![]
+                }),
+                operator: Operator::Substract,
+                right: Equation::Number(Number {
+                    value: 3,
+                    sign: vec![]
+                })
+            })),
         }))
     );
     assert_eq!(
@@ -243,4 +381,6 @@ fn milestone_1() {
     assert_eq!(process("2 * 2 * 3 + 1"), "13".to_string());
     assert_eq!(process("2 + 1 * 3 / 3"), "3".to_string());
     assert_eq!(process("8 / 2"), "4".to_string());
+    assert_eq!(process("-(3 - 2)"), "-1".to_string());
+    assert_eq!(process("1 - -(5)"), "6".to_string());
 }
