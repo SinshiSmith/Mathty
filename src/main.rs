@@ -383,4 +383,5 @@ fn milestone_1() {
     assert_eq!(process("8 / 2"), "4".to_string());
     assert_eq!(process("-(3 - 2)"), "-1".to_string());
     assert_eq!(process("1 - -(5)"), "6".to_string());
+    assert_eq!(process("5 + (3 + 7) * 99"), "995".to_string());
 }
