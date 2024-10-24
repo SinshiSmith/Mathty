@@ -38,7 +38,7 @@ enum Operator {
 }
 
 impl Operator {
-    fn solve(&self, left: i32, right: i32) -> i32 {
+    fn solve(&self, left: f32, right: f32) -> f32 {
         match self {
             Operator::Addition => left + right,
             Operator::Substract => left - right,
@@ -57,16 +57,16 @@ enum Sign {
 #[derive(Debug, PartialEq)]
 struct Number {
     sign: Vec<Sign>,
-    value: u32,
+    value: f32,
 }
 impl Number {
-    fn solve(&self) -> i32 {
-        let signer: i32 = if self.sign.iter().filter(|x| x == &&Sign::NIGATIVE).count() % 2 != 0 {
-            -1
+    fn solve(&self) -> f32 {
+        let signer: f32 = if self.sign.iter().filter(|x| x == &&Sign::NIGATIVE).count() % 2 != 0 {
+            -1.0
         } else {
-            1
+            1.0
         };
-        self.value as i32 * signer
+        self.value as f32 * signer
     }
 }
 
@@ -77,7 +77,7 @@ enum Equation {
 }
 
 impl Equation {
-    fn solve(&self) -> i32 {
+    fn solve(&self) -> f32 {
         match self {
             Equation::Number(number) => number.solve(),
             Equation::Part(parent) => parent.solve(),
@@ -92,7 +92,7 @@ struct Operation {
 }
 
 impl Operation {
-    fn solve(&self) -> i32 {
+    fn solve(&self) -> f32 {
         self.operator.solve(self.left.solve(), self.right.solve())
     }
 }
@@ -109,7 +109,7 @@ fn number_parser(input: &str) -> IResult<&str, Number> {
     pair(many0(sign_parser), digit1)
         .map(|(signs, number)| Number {
             sign: signs,
-            value: number.parse::<u32>().unwrap(),
+            value: number.parse::<f32>().unwrap(),
         })
         .parse(input)
 }
@@ -154,11 +154,11 @@ fn branching_parser(input: &str) -> IResult<&str, Equation> {
         )
         .map(|(signs, equation)| {
             let number = Number {
-                value: 1,
+                value: 1.0,
                 sign: signs,
             };
 
-            if number.solve() == 1 {
+            if number.solve() == 1.0 {
                 return equation;
             }
 
@@ -194,14 +194,14 @@ fn milestone_1() {
     assert_eq!(
         test_process("5"),
         Equation::Number(Number {
-            value: 5,
+            value: 5.0,
             sign: vec![]
         })
     );
     assert_eq!(
         test_process("(5)"),
         Equation::Number(Number {
-            value: 5,
+            value: 5.0,
             sign: vec![]
         })
     );
@@ -209,12 +209,12 @@ fn milestone_1() {
         test_process("5 + 7"),
         Equation::Part(Box::new(Operation {
             left: Equation::Number(Number {
-                value: 5,
+                value: 5.0,
                 sign: vec![]
             }),
             operator: Operator::Addition,
             right: Equation::Number(Number {
-                value: 7,
+                value: 7.0,
                 sign: vec![]
             })
         }))
@@ -223,12 +223,12 @@ fn milestone_1() {
         test_process("(5 + 7)"),
         Equation::Part(Box::new(Operation {
             left: Equation::Number(Number {
-                value: 5,
+                value: 5.0,
                 sign: vec![]
             }),
             operator: Operator::Addition,
             right: Equation::Number(Number {
-                value: 7,
+                value: 7.0,
                 sign: vec![]
             })
         }))
@@ -238,18 +238,18 @@ fn milestone_1() {
         Equation::Part(Box::new(Operation {
             left: Equation::Part(Box::new(Operation {
                 left: Equation::Number(Number {
-                    value: 5,
+                    value: 5.0,
                     sign: vec![]
                 }),
                 operator: Operator::Addition,
                 right: Equation::Number(Number {
-                    value: 7,
+                    value: 7.0,
                     sign: vec![]
                 })
             })),
             operator: Operator::Substract,
             right: Equation::Number(Number {
-                value: 3,
+                value: 3.0,
                 sign: vec![]
             })
         }))
@@ -259,18 +259,18 @@ fn milestone_1() {
         Equation::Part(Box::new(Operation {
             left: Equation::Part(Box::new(Operation {
                 left: Equation::Number(Number {
-                    value: 5,
+                    value: 5.0,
                     sign: vec![]
                 }),
                 operator: Operator::Addition,
                 right: Equation::Number(Number {
-                    value: 7,
+                    value: 7.0,
                     sign: vec![]
                 })
             })),
             operator: Operator::Substract,
             right: Equation::Number(Number {
-                value: 3,
+                value: 3.0,
                 sign: vec![]
             })
         }))
@@ -279,18 +279,18 @@ fn milestone_1() {
         test_process("5 + (7 - 3)"),
         Equation::Part(Box::new(Operation {
             left: Equation::Number(Number {
-                value: 5,
+                value: 5.0,
                 sign: vec![]
             }),
             operator: Operator::Addition,
             right: Equation::Part(Box::new(Operation {
                 left: Equation::Number(Number {
-                    value: 7,
+                    value: 7.0,
                     sign: vec![]
                 }),
                 operator: Operator::Substract,
                 right: Equation::Number(Number {
-                    value: 3,
+                    value: 3.0,
                     sign: vec![]
                 })
             })),
@@ -300,25 +300,25 @@ fn milestone_1() {
         test_process("5 + ((7 + 1) - 3)"),
         Equation::Part(Box::new(Operation {
             left: Equation::Number(Number {
-                value: 5,
+                value: 5.0,
                 sign: vec![]
             }),
             operator: Operator::Addition,
             right: Equation::Part(Box::new(Operation {
                 left: Equation::Part(Box::new(Operation {
                     left: Equation::Number(Number {
-                        value: 7,
+                        value: 7.0,
                         sign: vec![]
                     }),
                     operator: Operator::Addition,
                     right: Equation::Number(Number {
-                        value: 1,
+                        value: 1.0,
                         sign: vec![]
                     })
                 })),
                 operator: Operator::Substract,
                 right: Equation::Number(Number {
-                    value: 3,
+                    value: 3.0,
                     sign: vec![]
                 })
             })),
@@ -328,18 +328,18 @@ fn milestone_1() {
         test_process("5 * (7 - 3)"),
         Equation::Part(Box::new(Operation {
             left: Equation::Number(Number {
-                value: 5,
+                value: 5.0,
                 sign: vec![]
             }),
             operator: Operator::Multiple,
             right: Equation::Part(Box::new(Operation {
                 left: Equation::Number(Number {
-                    value: 7,
+                    value: 7.0,
                     sign: vec![]
                 }),
                 operator: Operator::Substract,
                 right: Equation::Number(Number {
-                    value: 3,
+                    value: 3.0,
                     sign: vec![]
                 })
             })),
@@ -352,24 +352,24 @@ fn milestone_1() {
                 left: Equation::Part(Box::new(Operation {
                     left: Equation::Number(Number {
                         sign: vec![],
-                        value: 5
+                        value: 5.0
                     }),
                     operator: Operator::Addition,
                     right: Equation::Number(Number {
                         sign: vec![],
-                        value: 7
+                        value: 7.0
                     })
                 })),
                 operator: Operator::Substract,
                 right: Equation::Number(Number {
                     sign: vec![],
-                    value: 3
+                    value: 3.0
                 })
             })),
             operator: Operator::Addition,
             right: Equation::Number(Number {
                 sign: vec![],
-                value: 2
+                value: 2.0
             })
         }))
     );
@@ -384,4 +384,5 @@ fn milestone_1() {
     assert_eq!(process("-(3 - 2)"), "-1".to_string());
     assert_eq!(process("1 - -(5)"), "6".to_string());
     assert_eq!(process("5 + (3 + 7) * 99"), "995".to_string());
+    assert_eq!(process("2 / 4"), "0.5".to_string());
 }
