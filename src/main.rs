@@ -1,12 +1,14 @@
 #![allow(dead_code)]
 #![allow(unused_imports)]
+use std::{collections::HashMap, fs::read_to_string, result};
+
 use nom::{
     branch::alt,
     bytes::complete::tag,
-    character::complete::{digit0, digit1},
+    character::complete::{alpha1, digit0, digit1},
     combinator::opt,
     multi::many0,
-    sequence::{delimited, pair, tuple},
+    sequence::{delimited, pair, separated_pair, tuple},
     IResult, Parser,
 };
 use pretty_assertions::assert_eq;
@@ -18,13 +20,35 @@ fn main() {
 fn process(input: &str) -> String {
     let clean = input.replace(" ", "");
     let (_remaining, result) = equation_parser(&clean).unwrap();
+    let variables = HashMap::new();
 
-    result.solve().to_string()
+    result.solve(&variables).to_string()
 }
 
 fn test_process(input: &str) -> Equation {
     let clean = input.replace(" ", "");
     let (_remaining, result) = equation_parser(&clean).unwrap();
+
+    result
+}
+
+fn coded_test_process(path: &str) -> String {
+    let input = read_to_string(path).unwrap();
+    let clean = input.replace(" ", "");
+
+    let mut variables = HashMap::new();
+
+    let mut result = String::new();
+
+    for line in clean.lines().filter(|x| !x.is_empty()) {
+        if line.contains('=') {
+            let (_, (key, equation)) = expression_parser(line).unwrap();
+            variables.insert(key.to_string(), equation);
+        } else {
+            let (_, parsed) = equation_parser(&line).unwrap();
+            result.push_str(&parsed.solve(&variables).to_string());
+        }
+    }
 
     result
 }
@@ -59,6 +83,7 @@ struct Number {
     sign: Vec<Sign>,
     value: f32,
 }
+
 impl Number {
     fn solve(&self) -> f32 {
         let signer: f32 = if self.sign.iter().filter(|x| x == &&Sign::NIGATIVE).count() % 2 != 0 {
@@ -71,16 +96,36 @@ impl Number {
 }
 
 #[derive(Debug, PartialEq)]
+struct Variable {
+    sign: Vec<Sign>,
+    name: String,
+}
+
+impl Variable {
+    fn solve(&self, variables: &HashMap<String, Equation>) -> f32 {
+        let signer: f32 = if self.sign.iter().filter(|x| x == &&Sign::NIGATIVE).count() % 2 != 0 {
+            -1.0
+        } else {
+            1.0
+        };
+        let equation = variables.get(&self.name).unwrap();
+        equation.solve(variables) * signer
+    }
+}
+
+#[derive(Debug, PartialEq)]
 enum Equation {
     Number(Number),
     Part(Box<Operation>),
+    Variable(Variable),
 }
 
 impl Equation {
-    fn solve(&self) -> f32 {
+    fn solve(&self, variables: &HashMap<String, Equation>) -> f32 {
         match self {
             Equation::Number(number) => number.solve(),
-            Equation::Part(parent) => parent.solve(),
+            Equation::Part(parent) => parent.solve(variables),
+            Equation::Variable(variable) => variable.solve(variables),
         }
     }
 }
@@ -92,8 +137,9 @@ struct Operation {
 }
 
 impl Operation {
-    fn solve(&self) -> f32 {
-        self.operator.solve(self.left.solve(), self.right.solve())
+    fn solve(&self, variables: &HashMap<String, Equation>) -> f32 {
+        self.operator
+            .solve(self.left.solve(variables), self.right.solve(variables))
     }
 }
 
@@ -110,6 +156,15 @@ fn number_parser(input: &str) -> IResult<&str, Number> {
         .map(|(signs, number)| Number {
             sign: signs,
             value: number.parse::<f32>().unwrap(),
+        })
+        .parse(input)
+}
+
+fn variable_parser(input: &str) -> IResult<&str, Variable> {
+    pair(many0(sign_parser), alpha1)
+        .map(|(sign, name)| Variable {
+            sign,
+            name: name.to_string(),
         })
         .parse(input)
 }
@@ -145,8 +200,10 @@ fn equation_parser(input: &str) -> IResult<&str, Equation> {
     })
     .parse(input)
 }
+
 fn branching_parser(input: &str) -> IResult<&str, Equation> {
     alt((
+        variable_parser.map(|x| Equation::Variable(x)),
         number_parser.map(|x| Equation::Number(x)),
         pair(
             many0(sign_parser),
@@ -187,6 +244,10 @@ fn multi_div_equation_parser(input: &str) -> IResult<&str, Equation> {
         })
     })
     .parse(input)
+}
+
+fn expression_parser(input: &str) -> IResult<&str, (&str, Equation)> {
+    separated_pair(alpha1, tag("="), equation_parser).parse(input)
 }
 
 #[test]
@@ -385,4 +446,5 @@ fn milestone_1() {
     assert_eq!(process("1 - -(5)"), "6".to_string());
     assert_eq!(process("5 + (3 + 7) * 99"), "995".to_string());
     assert_eq!(process("2 / 4"), "0.5".to_string());
+    assert_eq!(coded_test_process("test.txt"), "0.08988764".to_string())
 }
